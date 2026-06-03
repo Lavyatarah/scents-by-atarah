@@ -1,11 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaWhatsapp } from "react-icons/fa";
+import { FaWhatsapp, FaShoppingCart } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import { useCart } from "@/context/CartContext";
+import { useToast } from "@/hooks/use-toast";
 import badeeAlOudImg from "../assets/badee-al-oud.png";
+import heroBottleImg from "../assets/hero-bottle.webp";
 import oudMystereImg from "../assets/oud-mystere.png";
 import gardenReverieImg from "../assets/garden-reverie.png";
+import mensDuoImg from "../assets/mens-duo.webp";
 import velvetDuskImg from "../assets/velvet-dusk.png";
 import anghamImg from "../assets/angham-second-song.png";
 import mayarCherryImg from "../assets/mayar-cherry.png";
@@ -14,7 +18,15 @@ const WHATSAPP_LINK = "https://wa.me/254768702377";
 
 const DEFAULT_IMAGES: Record<string, string> = {
   "badee-al-oud": badeeAlOudImg,
+  "al-qiam-silver": heroBottleImg,
+  "affection-love": gardenReverieImg,
+  "asad-bourbon-duo": mensDuoImg,
   "angham-second-song": anghamImg,
+  "oud-mystere": oudMystereImg,
+  "garden-reverie-blend": gardenReverieImg,
+  "yara-bloom": gardenReverieImg,
+  "royal-collection-bundle": heroBottleImg,
+  "noor-legend-bundle": mensDuoImg,
   "mayar-cherry": mayarCherryImg,
 };
 
@@ -47,25 +59,193 @@ type FilterState = {
   brand: string;
 };
 
+const TRACKING_MESSAGE = "Hi Scent by Atarah 📦 I need help tracking my order. My name is: [Your Name] | Order date: [Date]";
+const TRACKING_LINK = `${WHATSAPP_LINK}?text=${encodeURIComponent(TRACKING_MESSAGE)}`;
+
+function SidebarContent({
+  search,
+  setSearch,
+  filters,
+  setFilters,
+  allProducts,
+  activeFilterCount,
+  clearFilters,
+  heroBottleImg,
+}: {
+  search: string;
+  setSearch: Dispatch<SetStateAction<string>>;
+  filters: FilterState;
+  setFilters: Dispatch<SetStateAction<FilterState>>;
+  allProducts: Product[];
+  activeFilterCount: number;
+  clearFilters: () => void;
+  heroBottleImg: string;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <input
+          type="text"
+          placeholder="Search fragrances..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full bg-background border border-border px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+        />
+      </div>
+
+      <div>
+        <h4 className="text-xs uppercase tracking-widest text-muted-foreground mb-3 font-bold">Browse</h4>
+        {(["all", "new", "bundle"] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => setFilters((f) => ({ ...f, special: s }))}
+            className={`block w-full text-left py-2 px-3 text-sm transition-colors ${
+              filters.special === s
+                ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
+                : "text-foreground hover:text-primary"
+            }`}
+          >
+            {s === "all" ? "All Fragrances" : s === "new" ? "✦ New Arrivals" : "🎁 Bundles"}
+          </button>
+        ))}
+      </div>
+
+      <div>
+        <h4 className="text-xs uppercase tracking-widest text-muted-foreground mb-3 font-bold">By Category</h4>
+        {CATEGORIES.map((c) => (
+          <button
+            key={c}
+            onClick={() => setFilters((f) => ({ ...f, category: f.category === c ? "" : c }))}
+            className={`block w-full text-left py-2 px-3 text-sm transition-colors ${
+              filters.category === c
+                ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
+                : "text-foreground hover:text-primary"
+            }`}
+          >
+            {c === "Men's" ? "Men's Fragrances" : c === "Women's" ? "Women's Fragrances" : c}
+          </button>
+        ))}
+      </div>
+
+      <div>
+        <h4 className="text-xs uppercase tracking-widest text-muted-foreground mb-3 font-bold">By Type</h4>
+        <div className="grid grid-cols-2 gap-2">
+          {TYPES.map((t) => (
+            <button
+              key={t}
+              onClick={() => setFilters((f) => ({ ...f, type: f.type === t ? "" : t }))}
+              className={`w-full text-left py-2 px-3 text-sm transition-colors rounded-sm border border-border ${
+                filters.type === t
+                  ? "bg-primary/10 text-primary font-semibold border-primary"
+                  : "bg-background text-foreground hover:border-primary hover:text-primary"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h4 className="text-xs uppercase tracking-widest text-muted-foreground mb-1 font-bold">Deodorants</h4>
+              <p className="text-[11px] text-muted-foreground">Tap an image to filter only deodorants.</p>
+            </div>
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary">
+              {allProducts.filter((p) => p.type === "Deodorant").length} items
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {allProducts
+              .filter((p) => p.type === "Deodorant")
+              .map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setFilters((f) => ({ ...f, type: "Deodorant" }))}
+                  className={`w-full h-14 overflow-hidden rounded-sm border transition-all ${
+                    filters.type === "Deodorant"
+                      ? "border-primary shadow-sm"
+                      : "border-border hover:border-primary"
+                  }`}
+                >
+                  <img src={p.img || heroBottleImg} alt={p.name} className="w-full h-full object-cover" />
+                </button>
+              ))}
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h4 className="text-xs uppercase tracking-widest text-muted-foreground mb-3 font-bold">By Brand</h4>
+        {BRANDS.map((b) => (
+          <button
+            key={b}
+            onClick={() => setFilters((f) => ({ ...f, brand: f.brand === b ? "" : b }))}
+            className={`block w-full text-left py-2 px-3 text-sm transition-colors ${
+              filters.brand === b
+                ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
+                : "text-foreground hover:text-primary"
+            }`}
+          >
+            {b}
+          </button>
+        ))}
+        <div className="mt-3 grid grid-cols-5 gap-2">
+          {allProducts
+            .filter((p) => (p.brand || "").toLowerCase().includes("lattafa"))
+            .map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setFilters((f) => ({ ...f, brand: "Lattafa" }))}
+                className="w-full h-12 overflow-hidden bg-background border border-border rounded-sm"
+              >
+                <img src={p.img || heroBottleImg} alt={p.name} className="w-full h-full object-cover" />
+              </button>
+            ))}
+        </div>
+      </div>
+
+      {activeFilterCount > 0 && (
+        <button onClick={clearFilters} className="text-xs text-muted-foreground underline hover:text-primary">
+          Clear all filters ({activeFilterCount})
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function Shop() {
   const [, navigate] = useLocation();
+  const { addItem, items } = useCart();
+  const { toast } = useToast();
   const [filters, setFilters] = useState<FilterState>({ special: "all", category: "", type: "", brand: "" });
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     fetch("/api/products")
-      .then(r => r.json())
-      .then((data: Array<{ id: string; imageUrl?: string } & Omit<Product, "id" | "img">>) => {
-        setAllProducts(data.map(p => ({
-          ...p,
-          img: p.imageUrl || "",
-        })));
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load products");
+        return r.json();
       })
-      .catch(() => setAllProducts([]))
+      .then((data: Array<{ id: string; imageUrl?: string } & Omit<Product, "id" | "img">>) => {
+        setLoadError(false);
+        setAllProducts(
+          data.map((p) => ({
+            ...p,
+            img: p.imageUrl?.trim()
+              ? p.imageUrl
+              : DEFAULT_IMAGES[p.id] ?? "",
+          })),
+        );
+      })
+      .catch(() => {
+        setLoadError(true);
+        setAllProducts([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -88,83 +268,6 @@ export default function Shop() {
     !!filters.brand,
   ].filter(Boolean).length;
 
-  const SidebarContent = () => (
-    <div className="flex flex-col gap-6">
-      {/* Search */}
-      <div>
-        <input
-          type="text"
-          placeholder="Search fragrances..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-background border border-border px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
-        />
-      </div>
-
-      {/* Special */}
-      <div>
-        <h4 className="text-xs uppercase tracking-widest text-muted-foreground mb-3 font-bold">Browse</h4>
-        {(["all", "new", "bundle"] as const).map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilters(f => ({ ...f, special: s }))}
-            className={`block w-full text-left py-2 px-3 text-sm transition-colors ${filters.special === s ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary" : "text-foreground hover:text-primary"}`}
-          >
-            {s === "all" ? "All Fragrances" : s === "new" ? "✦ New Arrivals" : "🎁 Bundles"}
-          </button>
-        ))}
-      </div>
-
-      {/* By Category */}
-      <div>
-        <h4 className="text-xs uppercase tracking-widest text-muted-foreground mb-3 font-bold">By Category</h4>
-        {CATEGORIES.map((c) => (
-          <button
-            key={c}
-            onClick={() => setFilters(f => ({ ...f, category: f.category === c ? "" : c }))}
-            className={`block w-full text-left py-2 px-3 text-sm transition-colors ${filters.category === c ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary" : "text-foreground hover:text-primary"}`}
-          >
-            {c} Fragrances
-          </button>
-        ))}
-      </div>
-
-      {/* By Type */}
-      <div>
-        <h4 className="text-xs uppercase tracking-widest text-muted-foreground mb-3 font-bold">By Type</h4>
-        {TYPES.map((t) => (
-          <button
-            key={t}
-            onClick={() => setFilters(f => ({ ...f, type: f.type === t ? "" : t }))}
-            className={`block w-full text-left py-2 px-3 text-sm transition-colors ${filters.type === t ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary" : "text-foreground hover:text-primary"}`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {/* By Brand */}
-      <div>
-        <h4 className="text-xs uppercase tracking-widest text-muted-foreground mb-3 font-bold">By Brand</h4>
-        {BRANDS.map((b) => (
-          <button
-            key={b}
-            onClick={() => setFilters(f => ({ ...f, brand: f.brand === b ? "" : b }))}
-            className={`block w-full text-left py-2 px-3 text-sm transition-colors ${filters.brand === b ? "bg-primary/10 text-primary font-semibold border-l-2 border-primary" : "text-foreground hover:text-primary"}`}
-          >
-            {b}
-          </button>
-        ))}
-      </div>
-
-      {activeFilterCount > 0 && (
-        <button onClick={clearFilters} className="text-xs text-muted-foreground underline hover:text-primary">
-          Clear all filters ({activeFilterCount})
-        </button>
-      )}
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
       {/* Top nav bar */}
@@ -182,8 +285,19 @@ export default function Shop() {
               ← Back to Home
             </button>
             <Button
+              className="border border-primary-foreground/30 hover:bg-primary/10 text-primary-foreground rounded-none px-5 py-2 text-xs uppercase tracking-wider flex items-center gap-2 relative"
+              onClick={() => navigate("/checkout")}
+            >
+              <FaShoppingCart /> Cart
+              {items.length > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center">
+                  {items.length}
+                </span>
+              )}
+            </Button>
+            <Button
               className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-none px-5 py-2 text-xs uppercase tracking-wider flex items-center gap-2"
-              onClick={() => window.open(`${WHATSAPP_LINK}?text=Hi, I need help tracking my order`, "_blank")}
+              onClick={() => window.open(TRACKING_LINK, "_blank")}
             >
               <FaWhatsapp /> Track My Package
             </Button>
@@ -194,13 +308,13 @@ export default function Shop() {
       {/* Delivery Banner */}
       <div className="bg-primary/10 border-b border-primary/20 py-3">
         <div className="container mx-auto px-6 flex flex-wrap items-center justify-center gap-4 md:gap-8 text-xs text-foreground/80">
-          <span className="flex items-center gap-1">🏙️ <strong className="text-primary">Nairobi CBD</strong> — Ksh 150</span>
+          <span className="flex items-center gap-1">🏙️ <strong className="text-primary">Nairobi CBD</strong> — Same day</span>
           <span className="text-border hidden md:block">|</span>
-          <span className="flex items-center gap-1">🌆 <strong className="text-primary">Nairobi Suburbs</strong> — Ksh 250</span>
+          <span className="flex items-center gap-1">🌆 <strong className="text-primary">Nairobi Suburbs</strong> — 1 business day</span>
           <span className="text-border hidden md:block">|</span>
-          <span className="flex items-center gap-1">🚚 <strong className="text-primary">Outside Nairobi</strong> — Ksh 400</span>
+          <span className="flex items-center gap-1">🚚 <strong className="text-primary">Outside Nairobi</strong> — 1–2 business days</span>
           <span className="text-border hidden md:block">|</span>
-          <span className="flex items-center gap-1">📦 <strong className="text-primary">Countrywide</strong> — 1–3 business days</span>
+          <span className="flex items-center gap-1">📦 <strong className="text-primary">Countrywide</strong> — 2–3 business days</span>
         </div>
       </div>
 
@@ -223,7 +337,16 @@ export default function Shop() {
         <div className="flex gap-8">
           {/* Desktop Sidebar */}
           <aside className="hidden md:block w-56 shrink-0">
-            <SidebarContent />
+            <SidebarContent
+              search={search}
+              setSearch={setSearch}
+              filters={filters}
+              setFilters={setFilters}
+              allProducts={allProducts}
+              activeFilterCount={activeFilterCount}
+              clearFilters={clearFilters}
+              heroBottleImg={heroBottleImg}
+            />
           </aside>
 
           {/* Products Grid */}
@@ -231,6 +354,18 @@ export default function Shop() {
             {loading ? (
               <div className="text-center py-24 text-muted-foreground">
                 <p className="font-serif text-xl animate-pulse">Loading fragrances…</p>
+              </div>
+            ) : loadError ? (
+              <div className="text-center py-24 text-muted-foreground">
+                <p className="font-serif text-xl mb-2">We couldn't load the catalog</p>
+                <p className="text-sm mb-4">Please refresh the page or try again in a moment.</p>
+                <Button
+                  variant="outline"
+                  className="border-primary text-primary hover:bg-primary/10 rounded-none px-6"
+                  onClick={() => window.location.reload()}
+                >
+                  Reload Shop
+                </Button>
               </div>
             ) : filtered.length === 0 ? (
               <div className="text-center py-24 text-muted-foreground">
@@ -250,7 +385,7 @@ export default function Shop() {
                     onClick={() => setSelectedProduct(item)}
                   >
                     <div className="relative w-full h-52 overflow-hidden bg-background">
-                      <img src={item.img} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <img src={item.img || heroBottleImg} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       <div className="absolute top-2 left-2 flex flex-col gap-1">
                         {item.isNew && <span className="bg-primary text-primary-foreground text-[10px] uppercase tracking-widest px-2 py-0.5">New</span>}
                         {item.isBundle && <span className="bg-foreground text-primary-foreground text-[10px] uppercase tracking-widest px-2 py-0.5">Bundle</span>}
@@ -271,9 +406,13 @@ export default function Shop() {
                       </div>
                       <Button
                         className="w-full mt-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-none uppercase tracking-widest text-[10px] py-4"
-                        onClick={(e) => { e.stopPropagation(); window.open(`${WHATSAPP_LINK}?text=Hi, I would like to order ${item.name} (Ksh ${item.price})`, "_blank"); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addItem({ id: item.id, name: item.name, price: item.price, img: item.img });
+                          toast({ title: "Added to cart", description: `${item.name} added to your cart` });
+                        }}
                       >
-                        <FaWhatsapp className="mr-1" /> Order on WhatsApp
+                        <FaShoppingCart className="mr-1" /> Add to Cart
                       </Button>
                     </div>
                   </motion.div>
@@ -298,7 +437,16 @@ export default function Shop() {
                 <h3 className="font-serif text-lg">Filters</h3>
                 <button onClick={() => setSidebarOpen(false)} className="text-muted-foreground hover:text-foreground text-xl">✕</button>
               </div>
-              <SidebarContent />
+              <SidebarContent
+                search={search}
+                setSearch={setSearch}
+                filters={filters}
+                setFilters={setFilters}
+                allProducts={allProducts}
+                activeFilterCount={activeFilterCount}
+                clearFilters={clearFilters}
+                heroBottleImg={heroBottleImg}
+              />
             </motion.div>
           </>
         )}
@@ -340,8 +488,12 @@ export default function Shop() {
                     <p className="font-serif text-2xl font-bold text-foreground mb-4">Ksh {selectedProduct.price}</p>
                     <div className="flex flex-col sm:flex-row gap-3">
                       <Button className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground rounded-none uppercase tracking-widest text-xs py-6 flex items-center justify-center gap-2"
-                        onClick={() => window.open(`${WHATSAPP_LINK}?text=Hi, I would like to order ${selectedProduct.name} (Ksh ${selectedProduct.price})`, "_blank")}>
-                        <FaWhatsapp className="text-lg" /> Order on WhatsApp
+                        onClick={() => {
+                          addItem({ id: selectedProduct.id, name: selectedProduct.name, price: selectedProduct.price, img: selectedProduct.img });
+                          toast({ title: "Added to cart", description: `${selectedProduct.name} added to your cart` });
+                          setSelectedProduct(null);
+                        }}>
+                        <FaShoppingCart className="text-lg" /> Add to Cart
                       </Button>
                       <Button variant="outline" className="flex-1 border-primary text-primary hover:bg-primary/10 rounded-none uppercase tracking-widest text-xs py-6 flex items-center justify-center gap-2"
                         onClick={() => window.open(`${WHATSAPP_LINK}?text=Hi, I have a question about ${selectedProduct.name}`, "_blank")}>

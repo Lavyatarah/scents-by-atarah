@@ -118,7 +118,7 @@ export default function Home() {
 
   const fadeUp = {
     hidden: { opacity: 0, y: 40 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } },
+    visible: { opacity: 1, y: 0 },
   };
 
   const filteredProducts = products.filter((p) => {
@@ -240,8 +240,8 @@ export default function Home() {
       </AnimatePresence>
 
       {/* Hero */}
-      <section className="relative min-h-[90vh] pt-32 flex flex-col md:flex-row bg-background">
-        <div className="w-full md:w-3/5 bg-foreground hero-clip flex items-center justify-center p-8 md:p-20 z-10">
+      <section className="relative min-h-[90vh] flex flex-col md:flex-row bg-background">
+        <div className="w-full md:w-3/5 bg-foreground hero-clip flex items-center justify-center px-8 pb-8 pt-32 md:px-20 md:pb-20 md:pt-36 z-10">
           <motion.div
             initial="hidden"
             animate="visible"
@@ -275,7 +275,7 @@ export default function Home() {
           </motion.div>
         </div>
 
-        <div className="w-full md:w-2/5 md:-ml-20 flex items-center justify-center p-8 md:p-12 bg-background">
+        <div className="w-full md:w-2/5 md:-ml-20 flex items-center justify-center px-8 pb-8 pt-12 md:px-12 md:pb-12 md:pt-36 bg-background">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1, transition: { duration: 1, delay: 0.2 } }}
@@ -613,6 +613,25 @@ export default function Home() {
           >
             "Every bottle is a living composition — volatile top notes invite you in, the heart reveals itself over time, and the base becomes your second skin."
           </motion.p>
+        </div>
+      </section>
+
+      {/* Signup CTA Section */}
+      <section className="py-24 bg-foreground text-center">
+        <div className="container mx-auto px-6">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp}>
+            <h2 className="font-serif text-4xl md:text-5xl text-primary-foreground mb-6">Join Our Scent Community</h2>
+            <p className="text-primary-foreground/60 text-lg font-light max-w-2xl mx-auto mb-10">
+              Create an account to save your favorite fragrances, track orders, and receive exclusive updates on new arrivals.
+            </p>
+            <Button
+              onClick={() => navigate("/signup")}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-none px-12 py-7 text-lg tracking-widest uppercase"
+            >
+              Create Account
+            </Button>
+            <p className="text-primary-foreground/40 text-sm mt-6">Already have an account? <button onClick={() => navigate("/signup")} className="text-primary hover:text-primary/80 underline">Sign in here</button></p>
+          </motion.div>
         </div>
       </section>
 
